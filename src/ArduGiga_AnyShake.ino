@@ -22,7 +22,6 @@
  * =================================================================================
  *  Authors:      Travis Farmer, Google Gemini, and the Open Seismic Community
  *  Repository:   https://github.com/travis-farmer/ardgiga_seismic_ads1263_AnyShake
- *  Version:      1.0.0
  *  License:      MIT License
  * 
  *  Copyright (c) 2026 Travis Farmer
