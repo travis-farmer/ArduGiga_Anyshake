@@ -24,4 +24,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Data Protocol:** AnyShake ASCII packet framing with standard NMEA XOR checksum verification.
 - **Documentation:** Added `README.md`, `LICENSE` (MIT), and `CHANGELOG.md`.
 
-[1.0.0]: https://github.com/travis-farmer/ardgiga_seismic_ads1263_AnyShake/releases/tag/v1.0.0
+[1.0.0]: https://github.com/travis-farmer/ArduGiga_Anyshake/releases/tag/v1.0.0
