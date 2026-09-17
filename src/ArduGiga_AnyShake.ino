@@ -53,8 +53,8 @@ DIN (MOSI),         Pin 11 (SPI MOSI),      Data from Giga to ADC
 DOUT (MISO),        Pin 12 (SPI MISO),      Data from ADC to Giga
 SCLK,               Pin 13 (SPI SCK),       Clock signal
 CS,                 Pin 10 (Configurable),  Chip Select
-START,              Pin 9 (Configurable),   Hardware Sync / Conversion Start
-DRDY,               Pin 8 (Configurable),   Data Ready indicator output
+START,              Pin 6 (Configurable),   Hardware Sync / Conversion Start
+DRDY,               Pin 7 (Configurable),   Data Ready indicator output
 
 DS3231 pin connections:
 DS3231 Pin,         Arduino Giga R1 Pin,    Notes
@@ -99,8 +99,8 @@ const unsigned long NTP_SYNC_INTERVAL = 12 * 60 * 60 * 1000UL; // Sync DS3231 ev
 
 // --- Hardware Pins ---
 const int PIN_CS = 10;
-const int PIN_START = 9;
-const int PIN_DRDY = 8;
+const int PIN_START = 6;
+const int PIN_DRDY = 7;
 
 // --- Instantiations ---
 ADS126X adc;
