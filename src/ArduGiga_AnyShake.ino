@@ -1,7 +1,7 @@
 /*
  * =================================================================================
  *  Project:      3-Channel High-Precision Seismic Data Acquisition Node
- *  Hardware:     Arduino Giga R1 WiFi, ADS1263 32-bit ADC, DS3231 RTC
+ *  Hardware:     Arduino Giga R1 WiFi, ADS1263 32-bit ADC, Onboard STM32 RTC
  *  Target System: SeisComP / AnyShake Protocol Integration
  * =================================================================================
  * 
@@ -11,9 +11,9 @@
  *  ADS1263 32-bit ADC at a constant 100 Hz sampling rate. 
  * 
  *  Time Synchronization & Integrity:
- *  - Primary system time is kept precise via a DS3231 precision RTC over I2C.
+ *  - Primary system time is kept precise via the Giga R1's onboard STM32 RTC.
  *  - The node connects to a local network over Wi-Fi to asynchronously update 
- *    the DS3231 clock against a local GPS-backed NTP time server.
+ *    the internal RTC clock against a local GPS-backed NTP time server using mbed_mktime.
  *  
  *  Data Framing:
  *  - Buffers 100 samples per channel into 1-second data packets.
@@ -21,7 +21,7 @@
  *    and streams them over high-speed USB Serial directly into SeisComP.
  * =================================================================================
  *  Authors:      Travis Farmer, Google Gemini, and the Open Seismic Community
- *  Repository:   https://github.com/travis-farmer/ardgiga_seismic_ads1263_AnyShake
+ *  Repository:   https://github.com/travis-farmer/ArduGiga_AnyShake
  *  License:      MIT License
  * 
  *  Copyright (c) 2026 Travis Farmer
@@ -55,22 +55,17 @@ SCLK,               Pin 13 (SPI SCK),       Clock signal
 CS,                 Pin 10 (Configurable),  Chip Select
 START,              Pin 6 (Configurable),   Hardware Sync / Conversion Start
 DRDY,               Pin 7 (Configurable),   Data Ready indicator output
-
-DS3231 pin connections:
-DS3231 Pin,         Arduino Giga R1 Pin,    Notes
-VCC,                3.3V or 5V,             Standard power rails.
-GND,                GND,                    Common ground.
-SDA,                SDA (Pin 20),           Hardware I2C Data.
-SCL,                SCL (Pin 21),           Hardware I2C Clock.
 */
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <Wire.h>
 #include <WiFi.h>          // Native Giga WiFi library
 #include <WiFiUdp.h>
-#include <RTClib.h>        // Adafruit RTClib for the DS3231
+#include <time.h>          // Standard C time handling
+#include <mbed_rtc_time.h> // Declarations for set_time() and attach_rtc()
+#include <mbed_mktime.h>   // Mbed time manipulation utilities
 #include "arduino_secrets.h"
+
 // --- CRITICAL FIX: Undefine conflicting STM32 hardware macros ---
 #ifdef CRC
 #undef CRC
@@ -93,9 +88,9 @@ const unsigned long SAMPLE_INTERVAL_MS = 10; // 10ms = 100Hz
 // --- Wi-Fi & NTP Settings ---
 const char* WIFI_SSID     = WSSID;
 const char* WIFI_PASSWORD = WPSWD;
-const char* NTP_SERVER_IP = "192.168.1.84";  // Replace with your local GPS-NTP Pi IP
+const char* NTP_SERVER_IP = "192.168.1.84";  // Local GPS-NTP Pi IP
 const unsigned int LOCAL_UDP_PORT = 2390;     // Local port to listen for UDP packets
-const unsigned long NTP_SYNC_INTERVAL = 12 * 60 * 60 * 1000UL; // Sync DS3231 every 12 hours
+const unsigned long NTP_SYNC_INTERVAL = 12 * 60 * 60 * 1000UL; // Sync internal RTC every 12 hours
 
 // --- Hardware Pins ---
 const int PIN_CS = 10;
@@ -104,7 +99,6 @@ const int PIN_DRDY = 7;
 
 // --- Instantiations ---
 ADS126X adc;
-RTC_DS3231 rtc;
 WiFiUDP udp;
 
 // --- Data Buffers ---
@@ -184,27 +178,22 @@ void syncRTCOverNTP() {
 
             // Convert to Unix Epoch (seconds since Jan 1, 1970)
             const unsigned long seventyYears = 2208988800UL;
-            unsigned long epochTime = secsSince1900 - seventyYears;
+            time_t epochTime = (time_t)(secsSince1900 - seventyYears);
 
-            // Note: Keep RTC set in pure UTC to avoid local DST drift!
-            rtc.adjust(DateTime(epochTime));
+            // Set the STM32 onboard hardware RTC via Mbed core driver
+            set_time(epochTime);
+            
             lastNTPSyncTime = millis();
-            Serial.println("[NTP] DS3231 synchronized successfully!");
+            Serial.println("[NTP] Onboard Giga RTC synchronized successfully!");
             return;
         }
     }
-    Serial.println("[NTP] Sync timed out. Operating on RTC internal oscillator.");
+    Serial.println("[NTP] Sync timed out. Operating on onboard RTC oscillator.");
 }
 
 void setup() {
     Serial.begin(115200);
     while (!Serial) { ; }
-    
-    // Initialize DS3231 I2C interface
-    if (!rtc.begin()) {
-        Serial.println("[SYS] Critical Error: DS3231 RTC not found!");
-        while (1);
-    }
 
     // Connect to network
     Serial.print("[WIFI] Connecting to ");
@@ -223,9 +212,9 @@ void setup() {
         udp.begin(LOCAL_UDP_PORT);
         syncRTCOverNTP(); // Fetch initial NTP sync straight away
     } else {
-        Serial.println("\n[WIFI] Connection failed. Using current DS3231 time.");
+        Serial.println("\n[WIFI] Connection failed. Using current onboard RTC time.");
     }
-
+    SPI1.begin();
     // Initialize ADS1263 SPI settings
     adc.begin(PIN_CS);
     pinMode(PIN_START, OUTPUT);
@@ -247,7 +236,7 @@ void setup() {
 void loop() {
     unsigned long currentTime = millis();
     
-    // 1. Asynchronous check to update the DS3231 over NTP
+    // 1. Asynchronous check to update the internal RTC over NTP
     if (currentTime - lastNTPSyncTime >= NTP_SYNC_INTERVAL) {
         syncRTCOverNTP();
     }
@@ -258,13 +247,15 @@ void loop() {
         
         // At the absolute first step of our new 1-second block, lock down the timestamp
         if (sampleIndex == 0) {
-            DateTime now = rtc.now();
-            activeHour   = now.hour();
-            activeMinute = now.minute();
-            activeSecond = now.second();
-            activeDay    = now.day();
-            activeMonth  = now.month();
-            activeYear   = now.year();
+            time_t rawTime = time(NULL);
+            struct tm* utcTime = gmtime(&rawTime);
+            
+            activeHour   = utcTime->tm_hour;
+            activeMinute = utcTime->tm_min;
+            activeSecond = utcTime->tm_sec;
+            activeDay    = utcTime->tm_mday;
+            activeMonth  = utcTime->tm_mon + 1;     // tm_mon ranges 0-11
+            activeYear   = utcTime->tm_year + 1900; // tm_year is years since 1900
         }
 
         // Grab values across differential channel mappings
@@ -289,7 +280,7 @@ void loop() {
             dataNStr.trim();
             dataEStr.trim();
             
-            // Build the core payload string mapped to the locked DS3231 timestamp
+            // Build the core payload string mapped to the locked internal RTC timestamp
             String payload = "AS," + DEVICE_ID + "," + 
                              String(packetSequence) + "," + 
                              getRTCTimestamp() + "," + 
