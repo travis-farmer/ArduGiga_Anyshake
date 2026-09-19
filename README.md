@@ -1,69 +1,42 @@
-# 3-Channel High-Precision Seismic Data Acquisition Node
+# ArduGiga AnyShake
 
-A high-resolution, 3-component ($Z$, $N$, $E$) seismic data acquisition system built around the **Arduino Giga R1 WiFi** and the **ADS1263 32-bit ADC**. Designed to interface directly with **SeisComP** using the **AnyShake** streaming protocol over USB Serial, with time synchronization anchored via a **DS3231 RTC** and a local **NTP server**.
-
-This project is setup for VScode/PlatformIO, and will need modification to be built with the Arduino IDE!
+An open-source, high-precision 3-component seismic digitizer built on the **Arduino Giga R1 WiFi** (STM32H7) and Texas Instruments **ADS1263** 32-bit ADC. This node streams real-time seismic waveform data natively using the `anyshake` protocol over serial to a **SeisComP** server.
 
 ---
 
-## Features
+## 🚀 Features
 
-- **3-Axis Differential Acquisition:** Captures vertical ($Z$), north-south ($N$), and east-west ($E$) seismic channels simultaneously.
-- **High Resolution:** Uses the Texas Instruments ADS1263 32-bit ADC for high dynamic range velocity measurements.
-- **Fixed 100 Hz Sample Rate:** Strictly timed $10\text{ ms}$ sampling loop outputs 100 samples/channel/second.
-- **Precision Time Synchronization:** Combines an onboard DS3231 RTC with background Wi-Fi updates from a local GPS-backed NTP server to eliminate time drift.
-- **SeisComP Native Integration:** Formats 1-second buffered frames into standard AnyShake ASCII packet strings with XOR checksum verification.
-
----
-
-## Hardware Architecture & Wiring
-
-### Components
-- **Microcontroller:** Arduino Giga R1 WiFi (STM32H7 dual-core)
-- **ADC Board:** Waveshare ADS1263 32-bit ADC module
-- **Real-Time Clock:** DS3231 Precision I2C RTC Module
-- **Sensors:** 3x Geophones (4.5 Hz or similar velocity sensors)
-
-### Pinout Mapping
-
-#### 1. ADS1263 ADC Pinout (SPI)
-| ADS1263 Pin | Arduino Giga R1 Pin | Function |
-| :--- | :--- | :--- |
-| **VCC** | `5V` / `3.3V` | System Power |
-| **GND** | `GND` | Common Ground |
-| **CS** | `Pin 10` | SPI Chip Select |
-| **DIN (MOSI)** | `SPI MOSI` | SPI Data Input |
-| **DOUT (MISO)**| `SPI MISO` | SPI Data Output |
-| **SCLK** | `SPI SCK` | SPI Clock |
-| **START** | `Pin 9` | Conversion Control |
-| **DRDY** | `Pin 8` | Data Ready Input |
-
-#### 2. Analog Input Mappings (Geophones)
-| Channel | ADS1263 Differential Pair | Sensor Connection |
-| :--- | :--- | :--- |
-| **Vertical ($Z$)** | `AIN0` / `AIN1` | Geophone 1 ($Z$-Axis) |
-| **North-South ($N$)** | `AIN2` / `AIN3` | Geophone 2 ($N$-Axis) |
-| **East-West ($E$)** | `AIN4` / `AIN5` | Geophone 3 ($E$-Axis) |
-
-#### 3. DS3231 RTC Pinout (I2C)
-| DS3231 Pin | Arduino Giga R1 Pin | Function |
-| :--- | :--- | :--- |
-| **VCC** | `3.3V` | Logic Power |
-| **GND** | `GND` | Common Ground |
-| **SDA** | `SDA` (Pin 20) | I2C Data |
-| **SCL** | `SCL` (Pin 21) | I2C Clock |
+* **High-Resolution Digitization:** 32-bit delta-sigma ADC sampling via Texas Instruments ADS1263.
+* **Local NTP Time Synchronization:** Onboard STM32 RTC synchronized via local Wi-Fi NTP using Mbed OS C-time routines (`set_time()`, `gmtime()`), eliminating the need for external GPS modules or RTC chips.
+* **Native Protocol Integration:** Direct serial streaming implementing the standard `anyshake` format for SeisComP integration.
+* **Self-Contained Build:** Custom `SPI1`-adapted `ADS126X` driver bundled within `lib/ADS126X/` for reproducible PlatformIO builds.
+* **Open Source:** Released under the permissive **MIT License**.
 
 ---
 
-## Software Setup
+## 🛠 Hardware Architecture
 
-### Prerequisites & Libraries
-Install the following dependencies in the **Arduino IDE** or **PlatformIO**:
+* **Microcontroller:** Arduino Giga R1 WiFi (Dual ARM Cortex-M7 @ 480MHz / Cortex-M4 @ 240MHz)
+* **ADC:** TI ADS1263 32-bit ADC Breakout
+* **Network / Time Sync:** Onboard Murata 1DX Wi-Fi module syncing local NTP
 
-1. **Board Package:** Arduino Mbed OS Giga Boards (via Arduino Board Manager)
-2. **ADS126X Library:** Install `ADS126X` (Included in libs folder, modified for this project only)
-3. **RTC Library:** Install `RTClib` by Adafruit
-4. **Networking:** Built-in `WiFi` and `WiFiUdp` libraries for Arduino Giga
+### Pinout Configuration (Arduino Giga R1 to ADS1263)
+
+> **Note:** Communication utilizes the secondary hardware SPI bus (`SPI1`) to prevent bus conflicts on the primary header pins. **SPI** is wired to the **ICSP** header, whereas **SPI1** is wired to the pins D11 - D13.
+
+| Signal Name | Giga R1 Pin | ADS1263 Pin | Description |
+| :--- | :--- | :--- | :--- |
+| **CIPO (MISO)** | `D12` (`CIPO1`) | `DOUT` / `DRDY` | SPI1 Data Input |
+| **COPI (MOSI)** | `D11` (`COPI1`) | `DIN` | SPI1 Data Output |
+| **SCK** | `D13` (`SCK1`) | `SCLK` | SPI1 Clock Line |
+| **CS** | Digital Pin `10` | `CS` | Chip Select |
+| **START** | Digital Pin `2` | `START` | Active HIGH for continuous sampling |
+| **PWDN** | Digital Pin `3` | `PWDN` | Active HIGH for power enabled |
+| **3.3V** | `3.3V` | `DVDD` | Digital Power Supply (3.3V Logic) |
+| **5V** | `5V` | `AVDD` | Analog Power Supply |
+| **GND** | `GND` | `DGND` / `AGND` | Common Ground |
+
+---
 
 ### Configuration
 
