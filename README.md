@@ -2,6 +2,8 @@
 
 A high-resolution, 3-component ($Z$, $N$, $E$) seismic data acquisition system built around the **Arduino Giga R1 WiFi** and the **ADS1263 32-bit ADC**. Designed to interface directly with **SeisComP** using the **AnyShake** streaming protocol over USB Serial, with time synchronization anchored via a **DS3231 RTC** and a local **NTP server**.
 
+This project is setup for VScode/PlatformIO, and will need modification to be built with the Arduino IDE!
+
 ---
 
 ## Features
@@ -59,7 +61,7 @@ A high-resolution, 3-component ($Z$, $N$, $E$) seismic data acquisition system b
 Install the following dependencies in the **Arduino IDE** or **PlatformIO**:
 
 1. **Board Package:** Arduino Mbed OS Giga Boards (via Arduino Board Manager)
-2. **ADS126X Library:** Install `ADS126X` https://github.com/Molorius/ADS126X
+2. **ADS126X Library:** Install `ADS126X` (Included in libs folder, modified for this project only)
 3. **RTC Library:** Install `RTClib` by Adafruit
 4. **Networking:** Built-in `WiFi` and `WiFiUdp` libraries for Arduino Giga
 
