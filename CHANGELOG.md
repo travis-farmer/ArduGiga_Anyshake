@@ -24,4 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Data Protocol:** AnyShake ASCII packet framing with standard NMEA XOR checksum verification.
 - **Documentation:** Added `README.md`, `LICENSE` (MIT), and `CHANGELOG.md`.
 
-[1.0.0]: https://github.com/travis-farmer/ArduGiga_Anyshake/releases/tag/v1.0.0
+## [2.0.0] - 2026-09-19
+
+### Added
+- Integrated customized `ADS126X` library into local project structure (`lib/ADS126X/`), making the repository fully self-contained and version-controlled.
+- Added explicit GPIO pin controls for `START` (Pin 2) and `PWDN` (Pin 3) in `setup()` to enforce continuous conversions and active power state.
+- Added explicit SPI settings configuration targeting **SPI Mode 1** at 1 MHz clock frequency for stable high-resolution ADC register operations.
+
+### Changed
+- **BREAKING CHANGE**: Migrated all ADC SPI communication routines from default `SPI` bus to `SPI1` to align with Arduino Giga R1 physical header assignments (COPI1 / CIPO1 / SCK1).
+- Updated internal `ADS126X` library calls to target `SPI1` hardware transactions natively.
+
+### Fixed
+- Fixed persistent `-1` (`0xFFFFFFFF`) read values from the ADS1263 ADC caused by bus assignment conflicts on the main SPI header pins.
